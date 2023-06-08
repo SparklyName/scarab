@@ -174,6 +174,7 @@ typedef struct Bp_Data_struct {
 /* IMPORTANT: please make sure that this enum matches EXACTLY the names and
  * order in bp/bp_table.def !!!!!!! */
 typedef enum Bp_Id_enum {
+  PERCEPTRON_BP,
   GSHARE_BP,
   HYBRIDGP_BP,
   TAGESCL_BP,
