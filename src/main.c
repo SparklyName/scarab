@@ -118,6 +118,7 @@ Scarab's source code is organized as follows:
     + Branch prediction
       + bp/bp.h
       + bp/bp_conf.h
+      + bp/perceptron.h
       + bp/gshare.h
       + bp/hybridgp.h
       + bp/tagescl.h

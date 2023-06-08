@@ -33,7 +33,7 @@ extern "C" {
 
 #define PHT_INIT_VALUE (0x1 << (PHT_CTR_BITS - 1)) /* weakly taken */
 #define DEBUG(proc_id, args...) _DEBUG(proc_id, DEBUG_BP_DIR, ##args)
-#define HARDWARE_BUDGET 128
+#define HARDWARE_BUDGET (128 * 512)
 #define PERCEPTRON_TABLE_WIDTH (HARDWARE_BUDGET / (HIST_LENGTH * 8)) 
 #define PTW PERCEPTRON_TABLE_WIDTH
 #define THRESHOLD 16
@@ -83,7 +83,9 @@ uns8 bp_perceptron_pred(Op* op) {
   auto &weights = perceptron_state.weights[tron_index];
   int32_t y = weights[HIST_LENGTH]; 
   for (uns32 i = 0; i < HIST_LENGTH; i++) {
-    y += ((hist & (1 << i)) > 0) * weights[i];
+    //y += ((hist & (1 << i)) > 0) * weights[i];
+    int32_t temp = (hist & (1 << i));
+    y += (temp > 0 ? 1 : -1) * weights[i];
   }
 
   /*
@@ -121,7 +123,9 @@ void bp_perceptron_update(Op* op) {
   if (prediction != outcome or (prediction < 16 or prediction > -16)) {
     weights[HIST_LENGTH] += 1 * outcome; 
     for (uns32 i = 0; i < HIST_LENGTH; i++) {
-      weights[i] += ((hist & (1 << (i - 1))) > 0) * outcome;  
+      //weights[i] += ((hist & (1 << (i - 1))) > 0) * outcome;  
+      int32_t temp = (hist & (1 << (i - 1)));
+      weights[i] += (temp > 0 ? 1 : -1) * outcome;  
     }
   }
   
