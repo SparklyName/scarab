@@ -33,15 +33,16 @@ extern "C" {
 
 #define PHT_INIT_VALUE (0x1 << (PHT_CTR_BITS - 1)) /* weakly taken */
 #define DEBUG(proc_id, args...) _DEBUG(proc_id, DEBUG_BP_DIR, ##args)
-#define HARDWARE_BUDGET 524288
+#define HARDWARE_BUDGET 128
 #define PERCEPTRON_TABLE_WIDTH (HARDWARE_BUDGET / (HIST_LENGTH * 8)) 
 #define PTW PERCEPTRON_TABLE_WIDTH
+#define THRESHOLD 16
 
 namespace {
 
 struct Perceptron_State {
-  std::vector<std::vector<uns8>> weights;
-  std::vector<uns8> outcomes;
+  std::vector<std::vector<long>> weights;
+  std::vector<long> outcomes;
 };
 
 std::vector<Perceptron_State> perceptron_state_all_cores;
@@ -79,10 +80,10 @@ uns8 bp_perceptron_pred(Op* op) {
   const Addr  addr      = op->oracle_info.pred_addr;
   const uns32 hist      = op->oracle_info.pred_global_hist;
   const uns32 tron_index = addr % PTW; 
-  std::vector<uns8> &weights = perceptron_state.weights[tron_index];
-  int32_t y = weights[0]; 
+  auto &weights = perceptron_state.weights[tron_index];
+  int32_t y = weights[HIST_LENGTH]; 
   for (uns32 i = 0; i < HIST_LENGTH; i++) {
-    y += ((hist & (1 << i)) > 0) * weights[i + 1];
+    y += ((hist & (1 << i)) > 0) * weights[i];
   }
 
   /*
@@ -113,10 +114,15 @@ void bp_perceptron_update(Op* op) {
   const Addr  addr      = op->oracle_info.pred_addr;
   const uns32 hist      = op->oracle_info.pred_global_hist;
   const uns32 tron_index = addr % PTW; 
-  std::vector<uns8> &weights = perceptron_state.weights[tron_index];
-  const int outcome = perceptron_state.outcomes[tron_index] ? 1 : -1;
-  for (uns32 i = 0; i < HIST_LENGTH; i++) {
-    weights[i] += ((hist & (1 << i)) > 0) * outcome;  
+  auto &weights = perceptron_state.weights[tron_index];
+  const int prediction = perceptron_state.outcomes[tron_index] ? 1 : -1;
+  const int outcome = op->oracle_info.dir ? 1 : -1;
+
+  if (prediction != outcome or (prediction < 16 or prediction > -16)) {
+    weights[HIST_LENGTH] += 1 * outcome; 
+    for (uns32 i = 0; i < HIST_LENGTH; i++) {
+      weights[i] += ((hist & (1 << (i - 1))) > 0) * outcome;  
+    }
   }
   
   /*
