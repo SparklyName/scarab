@@ -41,6 +41,7 @@ namespace {
 
 struct Perceptron_State {
   std::vector<std::vector<uns8>> weights;
+  std::vector<uns8> outcomes;
 };
 
 std::vector<Perceptron_State> perceptron_state_all_cores;
@@ -64,6 +65,7 @@ void bp_perceptron_init() {
   perceptron_state_all_cores.resize(NUM_CORES);
   for(auto& perceptron_state : perceptron_state_all_cores) {
     perceptron_state.weights.resize(PERCEPTRON_TABLE_WIDTH);
+    perceptron_state.outcomes.resize(PERCEPTRON_TABLE_WIDTH);
     for (auto& perceptron_weights : perceptron_state.weights) {
       perceptron_weights.resize(HIST_LENGTH + 1, 0);
     }
@@ -72,15 +74,14 @@ void bp_perceptron_init() {
 
 uns8 bp_perceptron_pred(Op* op) {
   const uns   proc_id      = op->proc_id;
-  const auto& perceptron_state = perceptron_state_all_cores.at(proc_id);
+  auto& perceptron_state = perceptron_state_all_cores.at(proc_id);
 
   const Addr  addr      = op->oracle_info.pred_addr;
   const uns32 hist      = op->oracle_info.pred_global_hist;
   const uns32 tron_index = addr % PTW; 
-  const std::vector<uns8> &weights = perceptron_state.weights[tron_index];
+  std::vector<uns8> &weights = perceptron_state.weights[tron_index];
   int32_t y = weights[0]; 
   for (uns32 i = 0; i < HIST_LENGTH; i++) {
-    printf("%d", (hist & (1 << i)) > 0);
     y += ((hist & (1 << i)) > 0) * weights[i + 1];
   }
 
@@ -96,6 +97,7 @@ uns8 bp_perceptron_pred(Op* op) {
 
   std::cout << pred << std::endl;
   */
+  perceptron_state.outcomes[tron_index] = y;
   return y > 0;
 }
 
@@ -104,6 +106,20 @@ void bp_perceptron_update(Op* op) {
     // If op is not a conditional branch, we do not interact with gshare.
     return;
   }
+  
+  const uns   proc_id      = op->proc_id;
+  auto& perceptron_state = perceptron_state_all_cores.at(proc_id);
+
+  const Addr  addr      = op->oracle_info.pred_addr;
+  const uns32 hist      = op->oracle_info.pred_global_hist;
+  const uns32 tron_index = addr % PTW; 
+  std::vector<uns8> &weights = perceptron_state.weights[tron_index];
+  const int outcome = perceptron_state.outcomes[tron_index] ? 1 : -1;
+  for (uns32 i = 0; i < HIST_LENGTH; i++) {
+    weights[i] += ((hist & (1 << i)) > 0) * outcome;  
+  }
+  
+  /*
 
   const uns   proc_id      = op->proc_id;
   auto&       gshare_state = gshare_state_all_cores.at(proc_id);
@@ -125,4 +141,5 @@ void bp_perceptron_update(Op* op) {
         pht_index, gshare_state.pht[pht_index], op->oracle_info.dir);
 
   return;
+  */
 }
