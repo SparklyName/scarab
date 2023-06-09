@@ -33,9 +33,8 @@ extern "C" {
 
 #define PHT_INIT_VALUE (0x1 << (PHT_CTR_BITS - 1)) /* weakly taken */
 #define DEBUG(proc_id, args...) _DEBUG(proc_id, DEBUG_BP_DIR, ##args)
-#define HARDWARE_BUDGET 128
+#define HARDWARE_BUDGET (512 * 1024)
 #define PERCEPTRON_TABLE_WIDTH (HARDWARE_BUDGET / (HIST_LENGTH * 8)) 
-#define PTW PERCEPTRON_TABLE_WIDTH
 #define THRESHOLD 16
 
 namespace {
@@ -79,11 +78,13 @@ uns8 bp_perceptron_pred(Op* op) {
 
   const Addr  addr      = op->oracle_info.pred_addr;
   const uns32 hist      = op->oracle_info.pred_global_hist;
-  const uns32 tron_index = addr % PTW; 
+  const uns32 tron_index = addr % PERCEPTRON_TABLE_WIDTH; 
   auto &weights = perceptron_state.weights[tron_index];
   int32_t y = weights[HIST_LENGTH]; 
+  // Fix later
   for (uns32 i = 0; i < HIST_LENGTH; i++) {
-    y += ((hist & (1 << i)) > 0) * weights[i];
+    int bit = ((hist & (1 << i)) > 0) ? 1 : -1;
+    y += bit * weights[i];
   }
 
   /*
@@ -113,15 +114,18 @@ void bp_perceptron_update(Op* op) {
 
   const Addr  addr      = op->oracle_info.pred_addr;
   const uns32 hist      = op->oracle_info.pred_global_hist;
-  const uns32 tron_index = addr % PTW; 
+  const uns32 tron_index = addr % PERCEPTRON_TABLE_WIDTH; 
   auto &weights = perceptron_state.weights[tron_index];
+
   const int prediction = perceptron_state.outcomes[tron_index] ? 1 : -1;
   const int outcome = op->oracle_info.dir ? 1 : -1;
 
-  if (prediction != outcome or (prediction < 16 or prediction > -16)) {
+  if (prediction != outcome or (prediction < THRESHOLD or prediction > -THRESHOLD)) {
     weights[HIST_LENGTH] += 1 * outcome; 
     for (uns32 i = 0; i < HIST_LENGTH; i++) {
-      weights[i] += ((hist & (1 << (i - 1))) > 0) * outcome;  
+      // This is wrong hist is bad
+      int bit = ((hist & (1 << i)) > 0) ? 1 : -1;
+      weights[i] += bit * outcome;  
     }
   }
   
