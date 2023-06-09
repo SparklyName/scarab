@@ -77,7 +77,7 @@ uns8 bp_perceptron_pred(Op* op) {
   auto& perceptron_state = perceptron_state_all_cores.at(proc_id);
 
   const Addr  addr      = op->oracle_info.pred_addr;
-  const uns32 hist      = op->oracle_info.pred_global_hist;
+  const uns64 hist      = op->oracle_info.pred_global_hist;
   const uns32 tron_index = addr % PERCEPTRON_TABLE_WIDTH; 
   auto &weights = perceptron_state.weights[tron_index];
   int32_t y = weights[HIST_LENGTH]; 
@@ -113,7 +113,7 @@ void bp_perceptron_update(Op* op) {
   auto& perceptron_state = perceptron_state_all_cores.at(proc_id);
 
   const Addr  addr      = op->oracle_info.pred_addr;
-  const uns32 hist      = op->oracle_info.pred_global_hist;
+  const uns64 hist      = op->oracle_info.pred_global_hist;
   const uns32 tron_index = addr % PERCEPTRON_TABLE_WIDTH; 
   auto &weights = perceptron_state.weights[tron_index];
 
